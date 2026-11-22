@@ -16,12 +16,28 @@
      {:get {:handler handler/list-todos-handler}
       :post {:handler handler/create-todo-handler}}]]))
 
+;; Permite requisições do frontend
+(defn wrap-cors [app]
+  (fn [request]
+    (let [response
+          (if (= :options (:request-method request))
+            {:status 204
+             :headers {}
+             :body ""}
+            (app request))]
+      (update response :headers
+              merge
+              {"Access-Control-Allow-Origin" "http://localhost:8000"
+               "Access-Control-Allow-Methods" "GET, POST, OPTIONS"
+               "Access-Control-Allow-Headers" "Content-Type"}))))
+
 (def app
   (-> (ring/ring-handler
        app-routes
        (ring/create-default-handler))
       (wrap-json-body {:keywords? true})
-      (wrap-json-response)))
+      (wrap-json-response)
+      (wrap-cors)))
 
 (defn start-server [port]
   (println (str "Servidor iniciado na porta " port))

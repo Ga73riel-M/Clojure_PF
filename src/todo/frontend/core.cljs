@@ -4,29 +4,66 @@
             [reagent.dom.client :as rdom]
             [clojure.string :as str]))
 
+(def api-url "http://localhost:3000/api/todos")
+
 (defonce app-state
   (r/atom {:todos []
-           :new-title ""}))
+           :new-title ""
+           :loading? true
+           :error nil}))
 
-;; Atualiza o texto digitado
+;; Converte respostas HTTP em dados Clojure
+(defn response->data [response]
+  (if (.-ok response)
+    (.json response)
+    (throw (js/Error. "Erro ao comunicar com a API."))))
+
+;; Carrega as tarefas do backend
+(defn load-todos []
+  (-> (js/fetch api-url)
+      (.then response->data)
+      (.then
+       (fn [data]
+         (let [result (js->clj data :keywordize-keys true)]
+           (swap! app-state assoc
+                  :todos (:todos result)
+                  :loading? false
+                  :error nil))))
+      (.catch
+       (fn [error]
+         (swap! app-state assoc
+                :loading? false
+                :error (.-message error))))))
+
+;; Atualiza o campo de texto
 (defn update-new-title [event]
   (swap! app-state assoc
          :new-title (.. event -target -value)))
 
-;; Adiciona uma tarefa
+;; Cadastra uma tarefa na API
 (defn add-todo []
   (let [title (str/trim (:new-title @app-state))]
     (when-not (str/blank? title)
-      (swap! app-state
-             (fn [state]
-               (-> state
-                   (update :todos conj
-                           {:id (random-uuid)
-                            :title title
-                            :completed false})
-                   (assoc :new-title "")))))))
+      (-> (js/fetch
+           api-url
+           #js {:method "POST"
+                :headers #js {"Content-Type" "application/json"}
+                :body (js/JSON.stringify
+                       (clj->js {:title title}))})
+          (.then response->data)
+          (.then
+           (fn [_data]
+             (swap! app-state assoc
+                    :new-title ""
+                    :error nil)
+             (load-todos)))
+          (.catch
+           (fn [error]
+             (swap! app-state assoc
+                    :error (.-message error))))))))
 
-;; Alterna entre concluída e pendente
+;; Alterna o estado local da tarefa.
+;; A persistência desse recurso será implementada na etapa CRUD.
 (defn toggle-todo [id]
   (swap! app-state update :todos
          (fn [todos]
@@ -36,7 +73,8 @@
                      todo))
                  todos))))
 
-;; Exclui uma tarefa
+;; Exclui localmente.
+;; A exclusão persistente será implementada na etapa CRUD.
 (defn delete-todo [id]
   (swap! app-state update :todos
          (fn [todos]
@@ -63,8 +101,14 @@
 (defn todo-list []
   (let [todos (:todos @app-state)]
     [:div.todo-list
-     (if (empty? todos)
+     (cond
+       (:loading? @app-state)
+       [:p "Carregando tarefas..."]
+
+       (empty? todos)
        [:p "Nenhuma tarefa cadastrada."]
+
+       :else
        [:ul
         (for [todo todos]
           ^{:key (:id todo)}
@@ -76,7 +120,6 @@
              {:type "checkbox"
               :checked (:completed todo)
               :on-change #(toggle-todo (:id todo))}]
-
             [:span (:title todo)]]
 
            [:button.delete-button
@@ -90,9 +133,12 @@
         pending (- (count todos) completed)]
     [:div.todo-app
      [:h1 "Minha Todo List"]
-     [:p "Organize suas tarefas!"]
+     [:p "Tarefas conectadas ao backend"]
 
      [todo-form]
+
+     (when-let [error (:error @app-state)]
+       [:p {:style {:color "red"}} error])
 
      [:div.todo-counter
       [:span "Total: " (count todos)]
@@ -103,7 +149,8 @@
 
 ;; Inicialização
 (defn ^:export init []
-  (println "Frontend Todo iniciado...")
+  (println "Frontend conectado à API...")
   (let [root (rdom/create-root
               (js/document.getElementById "app"))]
-    (.render root (r/as-element [app]))))
+    (.render root (r/as-element [app]))
+    (load-todos)))
