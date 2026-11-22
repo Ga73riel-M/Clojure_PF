@@ -4,7 +4,8 @@
    [ring.adapter.jetty :as jetty]
    [ring.middleware.json :refer [wrap-json-body wrap-json-response]]
    [reitit.ring :as ring]
-   [todo.backend.handler :as handler])
+   [todo.backend.handler :as handler]
+   [todo.backend.store :as store])
   (:gen-class))
 
 (def app-routes
@@ -45,6 +46,9 @@
    #'app
    {:port port :join? false}))
 
+
 (defn -main [& args]
   (let [port (Integer/parseInt (or (first args) "3000"))]
+    ;; Inicializa o banco antes de iniciar o servidor
+    (store/init!)
     (start-server port)))
