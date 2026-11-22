@@ -23,3 +23,34 @@
        :body (store/create! title)}
       {:status 400
        :body {:error "O título da tarefa é obrigatório."}})))
+
+(defn- parse-id [request]
+  (try
+    (let [id (Long/parseLong
+              (get-in request [:path-params :id]))]
+      (when (pos? id) id))
+    (catch Exception _
+      nil)))
+
+(defn toggle-todo-handler
+  [request]
+  (if-let [id (parse-id request)]
+    (if-let [todo (store/toggle! id)]
+      {:status 200
+       :body todo}
+      {:status 404
+       :body {:error "Tarefa não encontrada."}})
+    {:status 400
+     :body {:error "ID inválido."}}))
+
+(defn delete-todo-handler
+  [request]
+  (if-let [id (parse-id request)]
+    (if (store/delete! id)
+      {:status 200
+       :body {:deleted true
+              :id id}}
+      {:status 404
+       :body {:error "Tarefa não encontrada."}})
+    {:status 400
+     :body {:error "ID inválido."}}))

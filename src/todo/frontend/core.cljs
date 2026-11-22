@@ -65,20 +65,32 @@
 ;; Alterna o estado local da tarefa.
 ;; A persistência desse recurso será implementada na etapa CRUD.
 (defn toggle-todo [id]
-  (swap! app-state update :todos
-         (fn [todos]
-           (mapv (fn [todo]
-                   (if (= (:id todo) id)
-                     (update todo :completed not)
-                     todo))
-                 todos))))
+  (-> (js/fetch
+       (str api-url "/" id "/toggle")
+       #js {:method "PATCH"})
+      (.then response->data)
+      (.then (fn [_data]
+               (load-todos)))
+      (.catch
+       (fn [error]
+         (swap! app-state assoc
+                :error (.-message error))))))
 
 ;; Exclui localmente.
 ;; A exclusão persistente será implementada na etapa CRUD.
+
 (defn delete-todo [id]
-  (swap! app-state update :todos
-         (fn [todos]
-           (filterv #(not= (:id %) id) todos))))
+  (-> (js/fetch
+       (str api-url "/" id)
+       #js {:method "DELETE"})
+      (.then response->data)
+      (.then (fn [_data]
+               (load-todos)))
+      (.catch
+       (fn [error]
+         (swap! app-state assoc
+                :error (.-message error))))))
+
 
 ;; Formulário
 (defn todo-form []

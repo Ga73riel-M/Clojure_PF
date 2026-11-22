@@ -2,14 +2,11 @@
 (ns todo.backend.store
   (:import [java.sql DriverManager]))
 
-;; Arquivo do banco na raiz do projeto
 (def db-url "jdbc:sqlite:todo.db")
 
-;; Abre uma conexão com SQLite
 (defn- get-connection []
   (DriverManager/getConnection db-url))
 
-;; Cria a tabela caso ainda não exista
 (defn init! []
   (with-open [connection (get-connection)
               statement (.createStatement connection)]
@@ -22,7 +19,11 @@
       )"))
   (println "Banco SQLite inicializado!"))
 
-;; Retorna todas as tarefas
+(defn- result-set->todo [result-set]
+  {:id (.getLong result-set "id")
+   :title (.getString result-set "title")
+   :completed (= 1 (.getInt result-set "completed"))})
+
 (defn get-all []
   (with-open [connection (get-connection)
               statement (.createStatement connection)
@@ -33,14 +34,20 @@
                            ORDER BY id ASC")]
     (loop [result []]
       (if (.next result-set)
-        (recur
-         (conj result
-               {:id (.getLong result-set "id")
-                :title (.getString result-set "title")
-                :completed (= 1 (.getInt result-set "completed"))}))
+        (recur (conj result (result-set->todo result-set)))
         result))))
 
-;; Cadastra uma nova tarefa
+(defn get-by-id [id]
+  (with-open [connection (get-connection)
+              statement (.prepareStatement
+                         connection
+                         "SELECT id, title, completed
+                          FROM todos WHERE id = ?")]
+    (.setLong statement 1 id)
+    (with-open [result-set (.executeQuery statement)]
+      (when (.next result-set)
+        (result-set->todo result-set)))))
+
 (defn create! [title]
   (with-open [connection (get-connection)]
     (with-open [statement
@@ -48,10 +55,8 @@
                  connection
                  "INSERT INTO todos (title, completed)
                   VALUES (?, 0)")]
-
       (.setString statement 1 title)
       (.executeUpdate statement))
-
     (with-open [statement (.createStatement connection)
                 result-set (.executeQuery
                             statement
@@ -60,3 +65,25 @@
       {:id (.getLong result-set "id")
        :title title
        :completed false})))
+
+(defn toggle! [id]
+  (with-open [connection (get-connection)
+              statement (.prepareStatement
+                         connection
+                         "UPDATE todos
+                          SET completed = CASE
+                            WHEN completed = 0 THEN 1
+                            ELSE 0
+                          END
+                          WHERE id = ?")]
+    (.setLong statement 1 id)
+    (.executeUpdate statement))
+  (get-by-id id))
+
+(defn delete! [id]
+  (with-open [connection (get-connection)
+              statement (.prepareStatement
+                         connection
+                         "DELETE FROM todos WHERE id = ?")]
+    (.setLong statement 1 id)
+    (pos? (.executeUpdate statement))))

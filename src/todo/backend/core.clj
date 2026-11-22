@@ -15,7 +15,13 @@
 
     ["/api/todos"
      {:get {:handler handler/list-todos-handler}
-      :post {:handler handler/create-todo-handler}}]]))
+      :post {:handler handler/create-todo-handler}}]
+
+    ["/api/todos/:id/toggle"
+     {:patch {:handler handler/toggle-todo-handler}}]
+
+    ["/api/todos/:id"
+     {:delete {:handler handler/delete-todo-handler}}]]))
 
 ;; Permite requisições do frontend
 (defn wrap-cors [app]
@@ -29,7 +35,7 @@
       (update response :headers
               merge
               {"Access-Control-Allow-Origin" "http://localhost:8000"
-               "Access-Control-Allow-Methods" "GET, POST, OPTIONS"
+               "Access-Control-Allow-Methods" "GET, POST, PATCH, DELETE, OPTIONS"
                "Access-Control-Allow-Headers" "Content-Type"}))))
 
 (def app
