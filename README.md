@@ -184,7 +184,7 @@ O banco é inicializado automaticamente pelo backend quando o servidor é inicia
 
 - **Tutorial utilizado:** [LambdaGeo — Tutorial de Clojure](https://lambdageo-edu.github.io/lambdageo-tutorials/clojure/)
 - **Repositório GitHub:** https://github.com/Ga73riel-M/Clojure_PF
-- **Vídeo demonstrativo:** [INSERIR LINK DO VÍDEO]
+- **Vídeo demonstrativo:** [[LINK DO VÍDEO]](https://drive.google.com/drive/folders/19XZ1EdBwyBI0r-i4VaWUJMKEYza7kM0K?usp=sharing)
 
 ## Considerações finais
 
